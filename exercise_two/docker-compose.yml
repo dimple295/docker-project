@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgres
+    container_name: database
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT} 
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - library-network
+  
+
+
+  rabbitmq:
+    image: "rabbitmq:3.13-rc-management"
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"  # RabbitMQ default port
+      - "15672:15672"  # RabbitMQ Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - library-network
+ 
+  user-service:
+    build: ./UserService
+    container_name: api
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest    
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      database:
+        condition: service_started
+    networks:
+      - library-network
+    ports:
+      - "5002:5002"
+    # restart: unless-stopped
+    env_file:
+      - .env  
+    
+  book-service:
+    build: ./BookService
+    container_name: book-api
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}      
+    depends_on:
+      - database
+      - rabbitmq
+    networks:
+      - library-network
+    ports:
+      - "5006:5006"
+    restart: unless-stopped
+    env_file:
+      - .env  
+
+  borrow-service:
+    build: ./BorrowService
+    container_name: borrow-service
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest    
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      database:
+        condition: service_started
+    networks:
+      - library-network
+    ports:
+      - "6000:6000"  
+    restart: unless-stopped
+    env_file:
+      - .env
+
+
+
+networks:
+  library-network:
+    name: library-network
+
+volumes:
+  db_data:
+
+
+

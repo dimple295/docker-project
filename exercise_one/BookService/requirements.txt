@@ -1,0 +1,8 @@
+Flask
+requests
+SQLAlchemy
+flask_sqlalchemy
+psycopg2-binary
+pika
+fastapi
+uvicorn
